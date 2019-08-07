@@ -90,4 +90,4 @@ router.get('/version_update', async (ctx, next) => {
     ctx.response.body = { code: 0, vn: '0.0.1' }
 })
 
-app.listen(3008, () => { console.log('app started at port 3008'); })
+app.listen(3007, () => { console.log('app started at port 3007'); })
