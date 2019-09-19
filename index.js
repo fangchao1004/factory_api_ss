@@ -6,13 +6,27 @@ const compress = require('koa-compress');
 const router = new Router();
 const app = new Koa()
 const options = { threshold: 2048 }
+const Core = require('@alicloud/pop-core');
+const moment = require('moment')
 
-const db = require('./config/db');
+const db = require('./config/db')
+const schedule = require('node-schedule')
+
+var client = new Core({
+    accessKeyId: 'LTAIKlkSwGRxGUs2',
+    accessKeySecret: 'VwwbCrudDp7g2cDmk6vNBtiwcCliyV',
+    endpoint: 'https://dysmsapi.aliyuncs.com',
+    apiVersion: '2017-05-25'
+})
+
+var requestOption = {
+    method: 'POST'
+}
 
 app.use(compress(options))
 app.use(cors())
 app.use(koaBody({ multipart: true }));
-app.use(router.routes()).use(router.allowedMethods());
+app.use(router.routes()).use(router.allowedMethods())
 
 /**
  * 直接传入sqlserver语句 操作数据库
@@ -90,4 +104,39 @@ router.get('/version_update', async (ctx, next) => {
     ctx.response.body = { code: 0, vn: '0.0.1' }
 })
 
-app.listen(3007, () => { console.log('app started at port 3007'); })
+
+//--------------------------------------------------------------------------------------------------------
+//  启动定时器
+//--------------------------------------------------------------------------------------------------------
+const scheduleCronstyle = async () => {
+    console.log('午餐定时器启动')
+    schedule.scheduleJob('0 1 11 * * *', async () => {
+        let nowMoment = moment()
+        let todayStart = nowMoment.hours(9).minutes(30).seconds(0).format('YYYY-MM-DDTHH:mm:ss.SSS') + 'Z'
+        let todayEnd = nowMoment.hours(11).minutes(01).seconds(0).format('YYYY-MM-DDTHH:mm:ss.SSS') + 'Z'
+        let sql = `select a.AccountName
+        from TransactionDetail td
+        LEFT JOIN [Transaction] t ON t.TransactionID = td.TransactionID
+        LEFT JOIN [Account] a ON t.AccountID = a.AccountID
+        where td.TransactionTime>'${todayStart}' and td.TransactionTime<'${todayEnd}'`
+        const result = await fetchDataFromDB(sql)
+        let params = {
+            "PhoneNumbers": 18119645092,
+            "SignName": "中节能合肥",
+            "TemplateCode": "SMS_174270804",
+            "TemplateParam": JSON.stringify({
+                time: moment().format('YYYY-MM-DD'),
+                number: result.length,
+                eat: '午'
+            })
+        }
+        client.request('SendSms', params, requestOption).then((result) => {
+            console.log(result)
+        }, (ex) => {
+            console.log(ex)
+        })
+    })
+}
+scheduleCronstyle()
+
+app.listen(3007, () => { console.log('app started at port 3007') })
