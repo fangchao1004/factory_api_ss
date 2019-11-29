@@ -48,13 +48,20 @@ router.post('/obs', async (ctx, next) => {
  */
 router.post('/getAllTransactionInfo', async (ctx, next) => {
     try {
-        const sql = `SELECT t.*,td.*,a.AccountName FROM [Transaction] t
+        console.log('ctx.request.body:',ctx.request.body);
+        const currentPage = ctx.request.body.currentPage || 1
+        const pageSize = ctx.request.body.pageSize || 10
+        const limitValue = pageSize * (currentPage - 1)
+        const sql = `SELECT top ${pageSize} t.*,td.*,a.AccountName FROM [Transaction] t
         LEFT JOIN TransactionDetail td
         ON t.TransactionID = td.TransactionID
         LEFT JOIN Account a
         ON t.AccountID = a.AccountID
-        ORDER BY t.TransactionID
-        DESC`
+        where t.TransactionID not in (
+        select top ${limitValue} TransactionID FROM [Transaction]
+        ORDER BY TransactionID DESC
+        )
+        ORDER BY t.TransactionID DESC`
         const result = await fetchDataFromDB(sql);
         ctx.response.type = 'json'
         ctx.response.body = { code: 0, data: result }
