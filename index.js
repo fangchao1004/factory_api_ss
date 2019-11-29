@@ -45,10 +45,11 @@ router.post('/obs', async (ctx, next) => {
 
 /**
  * 查询所有的交易记录
+ * 分页查询
  */
 router.post('/getAllTransactionInfo', async (ctx, next) => {
     try {
-        console.log('ctx.request.body:',ctx.request.body);
+        console.log('ctx.request.body:', ctx.request.body);
         const currentPage = ctx.request.body.currentPage || 1
         const pageSize = ctx.request.body.pageSize || 10
         const limitValue = pageSize * (currentPage - 1)
@@ -73,15 +74,29 @@ router.post('/getAllTransactionInfo', async (ctx, next) => {
 
 /**
  * 支持模糊查询某个人的所有交易记录
+ * 分页查询
  */
 router.post('/getSomeOneTransactionInfo', async (ctx, next) => {
     try {
-        const sql = `SELECT t.*,td.*,a.AccountName FROM [Transaction] t
+        const currentPage = ctx.request.body.currentPage || 1
+        const pageSize = ctx.request.body.pageSize || 10
+        const limitValue = pageSize * (currentPage - 1)
+        const name = ctx.request.body.accountName
+        const sql = `SELECT top ${pageSize} t.*,td.*,a.AccountName FROM [Transaction] t
         LEFT JOIN TransactionDetail td
         ON t.TransactionID = td.TransactionID
         LEFT JOIN Account a
         ON t.AccountID = a.AccountID
-        WHERE a.AccountName LIKE '%${ctx.request.body.accountName}%'
+        WHERE t.TransactionID not in(
+        SELECT top ${limitValue} t.TransactionID FROM [Transaction] t
+        LEFT JOIN TransactionDetail td
+        ON t.TransactionID = td.TransactionID
+        LEFT JOIN Account a
+        ON t.AccountID = a.AccountID
+        WHERE a.AccountName LIKE '%${name}%'
+        ORDER BY t.TransactionID
+        DESC)
+        AND a.AccountName LIKE '%${name}%'
         ORDER BY t.TransactionID
         DESC`
         const result = await fetchDataFromDB(sql);
