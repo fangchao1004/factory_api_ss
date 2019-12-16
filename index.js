@@ -53,15 +53,21 @@ router.post('/getAllTransactionInfo', async (ctx, next) => {
         const currentPage = ctx.request.body.currentPage || 1
         const pageSize = ctx.request.body.pageSize || 10
         const limitValue = pageSize * (currentPage - 1)
+        const beginTime = ctx.request.body.beginTime;
+        const endTime = ctx.request.body.endTime;
         const sql = `SELECT top ${pageSize} t.*,td.*,a.AccountName FROM [Transaction] t
         LEFT JOIN TransactionDetail td
         ON t.TransactionID = td.TransactionID
         LEFT JOIN Account a
         ON t.AccountID = a.AccountID
         where t.TransactionID not in (
-        select top ${limitValue} TransactionID FROM [Transaction]
+        select top ${limitValue} t2.TransactionID FROM [Transaction] t2
+        LEFT JOIN TransactionDetail td2
+		ON  t2.TransactionID = td2.TransactionID
+		where td2.TransactionTime > '${beginTime}' and td2.TransactionTime < '${endTime}'
         ORDER BY TransactionID DESC
         )
+        and td.TransactionTime > '${beginTime}' and td.TransactionTime < '${endTime}'
         ORDER BY t.TransactionID DESC`
         const result = await fetchDataFromDB(sql);
         ctx.response.type = 'json'
@@ -82,6 +88,8 @@ router.post('/getSomeOneTransactionInfo', async (ctx, next) => {
         const pageSize = ctx.request.body.pageSize || 10
         const limitValue = pageSize * (currentPage - 1)
         const name = ctx.request.body.accountName
+        const beginTime = ctx.request.body.beginTime;
+        const endTime = ctx.request.body.endTime;
         const sql = `SELECT top ${pageSize} t.*,td.*,a.AccountName FROM [Transaction] t
         LEFT JOIN TransactionDetail td
         ON t.TransactionID = td.TransactionID
@@ -94,9 +102,11 @@ router.post('/getSomeOneTransactionInfo', async (ctx, next) => {
         LEFT JOIN Account a
         ON t.AccountID = a.AccountID
         WHERE a.AccountName LIKE '%${name}%'
+        AND td.TransactionTime > '${beginTime}' AND td.TransactionTime < '${endTime}'
         ORDER BY t.TransactionID
         DESC)
         AND a.AccountName LIKE '%${name}%'
+        AND td.TransactionTime > '${beginTime}' AND td.TransactionTime < '${endTime}'
         ORDER BY t.TransactionID
         DESC`
         const result = await fetchDataFromDB(sql);
